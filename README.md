@@ -2,8 +2,6 @@
 
 This Python code summarizes a YouTube video by analyzing its transcript and extracting the most important sentences.
 
-# Functionality
-
 # Import Libraries: The code utilizes libraries for:
 
 - pytube: Extracting video IDs from URLs.

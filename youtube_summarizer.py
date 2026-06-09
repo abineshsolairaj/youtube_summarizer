@@ -1,51 +1,74 @@
-from pytube import extract
+import argparse
+import sys
 from heapq import nlargest
-from youtube_transcript_api import YouTubeTranscriptApi
-import spacy
-from spacy.lang.en.stop_words import STOP_WORDS
 from string import punctuation
 
-#Replace with your favorite video url
-url = 'https://www.youtube.com/watch?v=fLvJ8VdHLA0'
-video_id = extract.video_id(url)
+import spacy
+from pytube import extract
+from spacy.lang.en.stop_words import STOP_WORDS
+from youtube_transcript_api import YouTubeTranscriptApi
 
-video_transcript = YouTubeTranscriptApi.get_transcript(video_id)
-text = ""
-for elem in video_transcript:
-    text = text + " " + elem["text"]
 
-nlp = spacy.load('en_core_web_sm')
-document = nlp(text)
-for sentence in document.sents:
-    print(sentence.text)
+DEFAULT_URL = "https://www.youtube.com/watch?v=fLvJ8VdHLA0"
+SUMMARY_RATIO = 0.3
 
-tokens = [token.text for token in document]
 
-word_frequencies = {}
-for word in document:
-    text = word.text.lower()
-    if text not in list(STOP_WORDS) and text not in punctuation:
-        if word.text not in word_frequencies.keys():
-            word_frequencies[word.text] = 1
-        else:
-            word_frequencies[word.text] += 1
+def fetch_transcript(url):
+    video_id = extract.video_id(url)
+    transcript = YouTubeTranscriptApi.get_transcript(video_id)
+    return " ".join(entry["text"] for entry in transcript)
 
-max_frequency = max(word_frequencies.values())
-for word in word_frequencies.keys():
-    word_frequencies[word] = word_frequencies[word]/max_frequency
 
-tokens = [sentence for sentence in document.sents]
-score = {}
-for sentence in tokens:
-    for word in sentence:
-        if word.text.lower() in word_frequencies.keys():
-            if sentence not in score.keys():
-                score[sentence] = word_frequencies[word.text.lower()]
-            else:
-                score[sentence] += word_frequencies[word.text.lower()]
+def summarize(text, ratio=SUMMARY_RATIO):
+    nlp = spacy.load("en_core_web_sm")
+    document = nlp(text)
 
-select_length = int(len(tokens) * 0.3)
-summary = nlargest(select_length, score, key = score.get)
-final_summary = [word.text for word in summary]
-summary = ' '.join(final_summary)
-print(summary)
+    word_frequencies = {}
+    for token in document:
+        word = token.text.lower()
+        if word in STOP_WORDS or word in punctuation:
+            continue
+        word_frequencies[word] = word_frequencies.get(word, 0) + 1
+
+    if not word_frequencies:
+        return ""
+
+    max_frequency = max(word_frequencies.values())
+    for word in word_frequencies:
+        word_frequencies[word] /= max_frequency
+
+    sentences = list(document.sents)
+    scores = {}
+    for sentence in sentences:
+        for token in sentence:
+            weight = word_frequencies.get(token.text.lower())
+            if weight is not None:
+                scores[sentence] = scores.get(sentence, 0) + weight
+
+    select_length = max(1, int(len(sentences) * ratio))
+    top_sentences = set(nlargest(select_length, scores, key=scores.get))
+    ordered = [sentence.text for sentence in sentences if sentence in top_sentences]
+    return " ".join(ordered)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Summarize a YouTube video from its transcript.")
+    parser.add_argument("url", nargs="?", default=DEFAULT_URL, help="YouTube video URL")
+    parser.add_argument("--ratio", type=float, default=SUMMARY_RATIO,
+                        help="Fraction of sentences to keep in the summary (0 < ratio <= 1)")
+    args = parser.parse_args()
+
+    if not 0 < args.ratio <= 1:
+        parser.error("--ratio must be in the (0, 1] range")
+
+    try:
+        text = fetch_transcript(args.url)
+    except Exception as exc:
+        print(f"Failed to fetch transcript: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(summarize(text, args.ratio))
+
+
+if __name__ == "__main__":
+    main()

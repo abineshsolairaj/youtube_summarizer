@@ -38,3 +38,25 @@ This Python code summarizes a YouTube video by analyzing its transcript and extr
 - Finally, it combines the words from these high-scoring sentences to form a summary of the video.
 
 Overall, this code demonstrates an automated approach to summarizing YouTube videos by leveraging Natural Language Processing techniques.
+
+# Setup and Usage:
+
+Install dependencies and the spaCy English model:
+
+```
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
+```
+
+Run with a YouTube URL (falls back to the default sample URL if omitted):
+
+```
+python youtube_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+Optionally adjust the fraction of sentences kept in the summary:
+
+```
+python youtube_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID" --ratio 0.2
+```
+

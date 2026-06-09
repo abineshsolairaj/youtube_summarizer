@@ -1,62 +1,111 @@
 # youtube_summarizer
 
-This Python code summarizes a YouTube video by analyzing its transcript and extracting the most important sentences.
+A Python command-line tool that summarizes a YouTube video by downloading its
+transcript and extracting the most important sentences using extractive,
+frequency-based scoring with spaCy.
 
-# Import Libraries: The code utilizes libraries for:
+## How it works
 
-- pytube: Extracting video IDs from URLs.
-- youtube_transcript_api: Downloading video transcripts.
-- spaCy: Performing Natural Language Processing tasks.
-- heapq: Finding the most frequent elements.
+1. **Extract the video ID** from the YouTube URL using `pytube`.
+2. **Download the transcript** for that video with `youtube-transcript-api`.
+3. **Tokenize and segment** the transcript into sentences and words using the
+   spaCy `en_core_web_sm` English model.
+4. **Compute word frequencies**, ignoring stop words (e.g. "the", "a", "an")
+   and punctuation. Frequencies are normalized by the maximum frequency so
+   each word has a weight in `(0, 1]`.
+5. **Score each sentence** as the sum of its constituent word weights.
+6. **Select the top N sentences** (default 30%, configurable) with `heapq.nlargest`,
+   then emit them in original document order so the summary reads naturally.
 
-# Get Video Transcript:
+## Requirements
 
-- The code takes a YouTube video URL (replace with your desired URL).
-- It extracts the video ID from the URL.
-- Then, it downloads the transcript of the video using the YouTubeTranscriptApi.
-- Finally, it combines all transcript elements into a single text string.
+- Python 3.8+
+- Internet access to fetch the transcript and download the spaCy model
+- A video that has captions/transcripts available on YouTube
 
-# Sentence Segmentation and Tokenization:
+## Installation
 
-- The code employs spaCy to load a pre-trained English language model (en_core_web_sm).
-- It then processes the text string to identify individual sentences and splits them into words (tokens).
+Clone the repository and install the dependencies:
 
-# Frequency Analysis and Normalization:
-
-- It removes stop words (common words like "the", "a", "an") and punctuation marks from the tokens.
-- It calculates the frequency of each unique word, excluding stop words and punctuation.
-- To account for word length variations, word frequencies are normalized by dividing them by the maximum frequency in the text.
-
-# Sentence Scoring:
-
-- Each sentence is assigned a score based on the sum of the normalized frequencies of its constituent words.
-- Sentences with words appearing more frequently in the transcript will receive higher scores.
-
-# Summary Generation:
-
-- The code selects the top 30% (configurable) of sentences with the highest scores using the heapq library.
-- Finally, it combines the words from these high-scoring sentences to form a summary of the video.
-
-Overall, this code demonstrates an automated approach to summarizing YouTube videos by leveraging Natural Language Processing techniques.
-
-# Setup and Usage:
-
-Install dependencies and the spaCy English model:
-
-```
+```bash
+git clone https://github.com/abineshsolairaj/youtube_summarizer.git
+cd youtube_summarizer
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-Run with a YouTube URL (falls back to the default sample URL if omitted):
+It is recommended to install inside a virtual environment:
 
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 ```
+
+## Usage
+
+Run the script with a YouTube URL as the positional argument:
+
+```bash
 python youtube_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-Optionally adjust the fraction of sentences kept in the summary:
+If you omit the URL, a built-in sample URL is used:
 
+```bash
+python youtube_summarizer.py
 ```
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `url` (positional) | sample video | Full YouTube video URL to summarize |
+| `--ratio` | `0.3` | Fraction of sentences to keep in the summary, in `(0, 1]` |
+| `-h`, `--help` | — | Show the help message and exit |
+
+### Examples
+
+Keep the top 20% of sentences:
+
+```bash
 python youtube_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID" --ratio 0.2
 ```
 
+Save the summary to a file:
+
+```bash
+python youtube_summarizer.py "https://www.youtube.com/watch?v=VIDEO_ID" > summary.txt
+```
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Summary printed successfully |
+| `1` | Transcript could not be fetched (network error, no captions, etc.) |
+| `2` | Invalid command-line arguments (e.g. `--ratio` outside `(0, 1]`) |
+
+## Troubleshooting
+
+- **`Failed to fetch transcript: ...`** — The video has no transcript
+  available, captions are disabled, the URL is invalid, or YouTube blocked
+  the request. Try a different video or check your network.
+- **`Can't find model 'en_core_web_sm'`** — Run
+  `python -m spacy download en_core_web_sm`.
+- **`ModuleNotFoundError`** — Re-run `pip install -r requirements.txt`,
+  preferably inside a virtual environment.
+
+## Project layout
+
+```
+youtube_summarizer/
+├── README.md
+├── requirements.txt
+└── youtube_summarizer.py
+```
+
+## License
+
+See repository for license information.

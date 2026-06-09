@@ -15,8 +15,8 @@ SUMMARY_RATIO = 0.3
 
 def fetch_transcript(url):
     video_id = extract.video_id(url)
-    transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    return " ".join(entry["text"] for entry in transcript)
+    transcript = YouTubeTranscriptApi().fetch(video_id)
+    return " ".join(snippet.text for snippet in transcript)
 
 
 def summarize(text, ratio=SUMMARY_RATIO):
